@@ -1,5 +1,4 @@
 defmodule Mercadopago.Config do
-  
   @moduledoc """
   Documentation for Mercadopago.Config
 
@@ -30,13 +29,21 @@ defmodule Mercadopago.Config do
       iex(1)> Mercadopago.Config.get
       %{client_id: "MERCADOPAGO_CLIENT_ID", client_secret: "MERCADOPAGO_CLIENT_SECRET"}
   """
-  @spec get :: %{client_id: String.t, client_secret: String.t}
+  @spec get :: %{client_id: String.t(), client_secret: String.t()}
   def get do
-    case !is_nil(System.get_env("MERCADOPAGO_CLIENT_ID")) && !is_nil(System.get_env("MERCADOPAGO_CLIENT_SECRET")) do
+    case !is_nil(System.get_env("MERCADOPAGO_CLIENT_ID")) &&
+           !is_nil(System.get_env("MERCADOPAGO_CLIENT_SECRET")) do
       true ->
-        %{client_id: System.get_env("MERCADOPAGO_CLIENT_ID"), client_secret: System.get_env("MERCADOPAGO_CLIENT_SECRET")}
+        %{
+          client_id: System.get_env("MERCADOPAGO_CLIENT_ID"),
+          client_secret: System.get_env("MERCADOPAGO_CLIENT_SECRET")
+        }
+
       _ ->
-        %{client_id: Application.get_env(:mercadopago_api, :client_id), client_secret: Application.get_env(:mercadopago_api, :client_secret)}
+        %{
+          client_id: Application.get_env(:mercadopago_api, :client_id),
+          client_secret: Application.get_env(:mercadopago_api, :client_secret)
+        }
     end
   end
 end

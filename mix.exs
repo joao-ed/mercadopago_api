@@ -8,7 +8,7 @@ defmodule Mercadopago.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       description: description(),
-      package: package(),   
+      package: package(),
       name: "MercadopagoAPI",
       deps: deps()
     ]
@@ -33,7 +33,7 @@ defmodule Mercadopago.MixProject do
 
   defp description() do
     "Elixir library for communicating with the Mercado Pago payments API."
-  end  
+  end
 
   defp package() do
     [
@@ -43,5 +43,5 @@ defmodule Mercadopago.MixProject do
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => "https://github.com/gilbertobr/mercadopago_api"}
     ]
-  end  
+  end
 end

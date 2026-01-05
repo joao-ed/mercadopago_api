@@ -18,12 +18,11 @@ defmodule Mercadopago.API do
 
       iex> Mercadopago.API.create_token()
       {:ok, {..}}
-
-  """  
+  """
   def create_token() do
     params = %{
-      "client_id" => Mercadopago.Config.get.client_id,
-      "client_secret" => Mercadopago.Config.get.client_secret,
+      "client_id" => Mercadopago.Config.get().client_id,
+      "client_secret" => Mercadopago.Config.get().client_secret,
       "grant_type" => "client_credentials"
     }
 
@@ -55,26 +54,43 @@ defmodule Mercadopago.API do
   - {:error, :bad_network}
   - {:error, reason}
 
+  ## Parameters
+
+    - `url` - The API endpoint path (e.g., "/v1/payments/123")
+    - `access_token` - Optional. If provided, uses this token instead of the app's token.
+                       Use this when making requests on behalf of another user (OAuth flow).
+
   ## Examples
 
-      iex> Mercadopago.API.get(url)
+      # Using app's token (client_credentials)
+      iex> Mercadopago.API.get("/v1/payments/123")
       {:ok, {...}}
 
-  """  
-  def get(url) do
-    case HTTPoison.get(base_url() <> url, headers()) do
+      # Using a musician's token (authorization_code flow)
+      iex> Mercadopago.API.get("/v1/payments/123", "APP_USR-musician-token")
+      {:ok, {...}}
+
+  """
+  def get(url, access_token \\ nil) do
+    case HTTPoison.get(base_url() <> url, headers(access_token)) do
       {:ok, %{status_code: 404}} ->
         {:error, :not_found}
+
       {:ok, %{status_code: 401}} ->
-        {:error, :unauthorised}        
+        {:error, :unauthorised}
+
       {:ok, %{status_code: 400}} ->
         {:error, :not_found}
+
       {:ok, %{status_code: 204}} ->
         {:ok, :no_content}
+
       {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}        
-      {:ok, %{body: body}}->
+        {:ok, Poison.decode!(body, keys: :atoms)}
+
+      {:ok, %{body: body}} ->
         {:error, body}
+
       _ ->
         {:error, :bad_network}
     end
@@ -83,100 +99,168 @@ defmodule Mercadopago.API do
   @doc """
   Make an HTTP POST request to the correct API, adding the authentication required header.
 
+  ## Parameters
+
+    - `url` - The API endpoint path (e.g., "/v1/payments")
+    - `data` - The request body as a map or list
+    - `access_token` - Optional. If provided, uses this token instead of the app's token.
+                       Use this when making requests on behalf of another user (OAuth flow).
+
   ## Examples
 
-      iex> Mercadopago.API.post(url, data)
+      # Using app's token (client_credentials)
+      iex> Mercadopago.API.post("/v1/payments", %{amount: 100})
+      {:ok, {...}}
+
+      # Using a musician's token (authorization_code flow)
+      iex> Mercadopago.API.post("/v1/payments", %{amount: 100}, "APP_USR-musician-token")
       {:ok, {...}}
 
   """
-  @spec post(String.t, map | list | nil) :: {:ok, map | :not_found | :no_content | nil} | {:error, :unauthorised | :bad_network | any}
-  def post(url, data) do
+  @spec post(String.t(), map | list | nil, String.t() | nil) ::
+          {:ok, map | :not_found | :no_content | nil}
+          | {:error, :unauthorised | :bad_network | any}
+  def post(url, data, access_token \\ nil) do
     {:ok, data} = Poison.encode(data)
-    case HTTPoison.post(base_url() <> url, data, headers()) do
+
+    case HTTPoison.post(base_url() <> url, data, headers(access_token)) do
       {:ok, %{status_code: 404}} ->
         {:error, :not_found}
+
       {:ok, %{status_code: 401}} ->
-        {:error, :unauthorised}        
+        {:error, :unauthorised}
+
       {:ok, %{status_code: 400}} ->
-        {:error, :bad_request}        
+        {:error, :bad_request}
+
       {:ok, %{status_code: 204}} ->
-        {:ok, nil}        
+        {:ok, nil}
+
       {:ok, %{body: body, status_code: 201}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}           
+        {:ok, Poison.decode!(body, keys: :atoms)}
+
       {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}     
+        {:ok, Poison.decode!(body, keys: :atoms)}
+
       {:ok, %{body: body}} = resp ->
-        IO.inspect resp
+        IO.inspect(resp)
         {:error, body}
-      _ ->
-        {:error, :bad_network}
-    end
-  end  
 
-  @doc """
-  Make an HTTP PUT request to the correct API, adding the authentication required header.
-
-  ## Examples
-
-      iex> Mercadopago.API.put(url, data)
-      {:ok, {...}}
-
-  """
-  @spec put(String.t, map | list | nil) :: {:ok, map | :not_found | :no_content | nil} | {:error, :unauthorised | :bad_network | any}
-  def put(url, data) do
-    {:ok, data} = Poison.encode(data)
-    case HTTPoison.put(base_url() <> url, data, headers()) do
-      {:ok, %{status_code: 404}} ->
-        {:error, :not_found}
-      {:ok, %{status_code: 401}} ->
-        {:error, :unauthorised}        
-      {:ok, %{status_code: 400}} ->
-        {:error, :bad_request}        
-      {:ok, %{status_code: 204}} ->
-        {:ok, nil}        
-      {:ok, %{body: body, status_code: 201}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}           
-      {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}     
-      {:ok, %{body: body}} = resp ->
-        IO.inspect resp
-        {:error, body}
-      _ ->
-        {:error, :bad_network}
-    end
-  end    
-
-  @doc """
-  Make an HTTP DELETE request to the correct API, adding the authentication required header.
-
-  ## Examples
-
-      iex> Mercadopago.API.delete(url)
-      {:ok, {...}}
-
-  """  
-  def delete(url) do
-    case HTTPoison.delete(base_url() <> url, headers()) do
-      {:ok, %{status_code: 404}} ->
-        {:error, :not_found}
-      {:ok, %{status_code: 401}} ->
-        {:error, :unauthorised}        
-      {:ok, %{status_code: 400}} ->
-        {:error, :not_found}
-      {:ok, %{status_code: 204}} ->
-        {:ok, :no_content}
-      {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}        
-      {:ok, %{body: body}}->
-        {:error, body}
       _ ->
         {:error, :bad_network}
     end
   end
 
-  defp headers() do
+  @doc """
+  Make an HTTP PUT request to the correct API, adding the authentication required header.
+
+  ## Parameters
+
+    - `url` - The API endpoint path (e.g., "/v1/payments/123")
+    - `data` - The request body as a map or list
+    - `access_token` - Optional. If provided, uses this token instead of the app's token.
+                       Use this when making requests on behalf of another user (OAuth flow).
+
+  ## Examples
+
+      # Using app's token (client_credentials)
+      iex> Mercadopago.API.put("/v1/payments/123", %{status: "cancelled"})
+      {:ok, {...}}
+
+      # Using a musician's token (authorization_code flow)
+      iex> Mercadopago.API.put("/v1/payments/123", %{status: "cancelled"}, "APP_USR-musician-token")
+      {:ok, {...}}
+
+  """
+  @spec put(String.t(), map | list | nil, String.t() | nil) ::
+          {:ok, map | :not_found | :no_content | nil}
+          | {:error, :unauthorised | :bad_network | any}
+  def put(url, data, access_token \\ nil) do
+    {:ok, data} = Poison.encode(data)
+
+    case HTTPoison.put(base_url() <> url, data, headers(access_token)) do
+      {:ok, %{status_code: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status_code: 401}} ->
+        {:error, :unauthorised}
+
+      {:ok, %{status_code: 400}} ->
+        {:error, :bad_request}
+
+      {:ok, %{status_code: 204}} ->
+        {:ok, nil}
+
+      {:ok, %{body: body, status_code: 201}} ->
+        {:ok, Poison.decode!(body, keys: :atoms)}
+
+      {:ok, %{body: body, status_code: 200}} ->
+        {:ok, Poison.decode!(body, keys: :atoms)}
+
+      {:ok, %{body: body}} = resp ->
+        IO.inspect(resp)
+        {:error, body}
+
+      _ ->
+        {:error, :bad_network}
+    end
+  end
+
+  @doc """
+  Make an HTTP DELETE request to the correct API, adding the authentication required header.
+
+  ## Parameters
+
+    - `url` - The API endpoint path (e.g., "/v1/payments/123")
+    - `access_token` - Optional. If provided, uses this token instead of the app's token.
+                       Use this when making requests on behalf of another user (OAuth flow).
+
+  ## Examples
+
+      # Using app's token (client_credentials)
+      iex> Mercadopago.API.delete("/pos/123")
+      {:ok, {...}}
+
+      # Using a musician's token (authorization_code flow)
+      iex> Mercadopago.API.delete("/pos/123", "APP_USR-musician-token")
+      {:ok, {...}}
+
+  """
+  def delete(url, access_token \\ nil) do
+    case HTTPoison.delete(base_url() <> url, headers(access_token)) do
+      {:ok, %{status_code: 404}} ->
+        {:error, :not_found}
+
+      {:ok, %{status_code: 401}} ->
+        {:error, :unauthorised}
+
+      {:ok, %{status_code: 400}} ->
+        {:error, :not_found}
+
+      {:ok, %{status_code: 204}} ->
+        {:ok, :no_content}
+
+      {:ok, %{body: body, status_code: 200}} ->
+        {:ok, Poison.decode!(body, keys: :atoms)}
+
+      {:ok, %{body: body}} ->
+        {:error, body}
+
+      _ ->
+        {:error, :bad_network}
+    end
+  end
+
+  defp headers(nil) do
     [
       {"Authorization", "Bearer #{mercadopago_token()}"},
+      {"Content-Type", "application/json"}
+    ]
+  end
+
+  defp headers(access_token) do
+    [
+      {"Authorization", "Bearer #{access_token}"},
       {"Content-Type", "application/json"}
     ]
   end
@@ -186,5 +270,4 @@ defmodule Mercadopago.API do
 
   defp mercadopago_token,
     do: Mercadopago.get_token()
-
 end
