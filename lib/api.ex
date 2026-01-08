@@ -86,7 +86,7 @@ defmodule Mercadopago.API do
         {:ok, :no_content}
 
       {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}
+        {:ok, Poison.decode!(body, %{keys: :atoms})}
 
       {:ok, %{body: body}} ->
         {:error, body}
@@ -137,10 +137,10 @@ defmodule Mercadopago.API do
         {:ok, nil}
 
       {:ok, %{body: body, status_code: 201}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}
+        {:ok, Poison.decode!(body, %{keys: :atoms})}
 
       {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}
+        {:ok, Poison.decode!(body, %{keys: :atoms})}
 
       {:ok, %{body: body}} = resp ->
         IO.inspect(resp)
@@ -192,10 +192,10 @@ defmodule Mercadopago.API do
         {:ok, nil}
 
       {:ok, %{body: body, status_code: 201}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}
+        {:ok, Poison.decode!(body, %{keys: :atoms})}
 
       {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}
+        {:ok, Poison.decode!(body, %{keys: :atoms})}
 
       {:ok, %{body: body}} = resp ->
         IO.inspect(resp)
@@ -241,7 +241,7 @@ defmodule Mercadopago.API do
         {:ok, :no_content}
 
       {:ok, %{body: body, status_code: 200}} ->
-        {:ok, Poison.decode!(body, keys: :atoms)}
+        {:ok, Poison.decode!(body, %{keys: :atoms})}
 
       {:ok, %{body: body}} ->
         {:error, body}

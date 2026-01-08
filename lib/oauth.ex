@@ -144,22 +144,32 @@ defmodule Mercadopago.OAuth do
 
     case HTTPoison.post(@token_url, body, headers) do
       {:ok, %HTTPoison.Response{status_code: 200, body: response_body}} ->
-        tokens = Poison.decode!(response_body, keys: :atoms)
-        Logger.info("[Mercadopago.OAuth] Successfully exchanged code for tokens")
-        {:ok, tokens}
+        case Poison.decode(response_body, %{keys: :atoms}) do
+          {:ok, tokens} ->
+            Logger.info("[Mercadopago.OAuth] Successfully exchanged code for tokens")
+            {:ok, tokens}
+
+          {:error, _reason} ->
+            Logger.error("[Mercadopago.OAuth] Failed to decode token response")
+            {:error, :decode_error}
+        end
 
       {:ok, %HTTPoison.Response{status_code: 400, body: response_body}} ->
-        error = Poison.decode!(response_body)
-        Logger.error("[Mercadopago.OAuth] Bad request: #{inspect(error)}")
-        {:error, error["error"] || :bad_request}
+        error_msg =
+          case Poison.decode(response_body) do
+            {:ok, error} -> error["error"] || "bad_request"
+            {:error, _} -> "bad_request"
+          end
+
+        Logger.error("[Mercadopago.OAuth] Bad request: #{error_msg}")
+        {:error, error_msg}
 
       {:ok, %HTTPoison.Response{status_code: 401, body: response_body}} ->
-        error = Poison.decode!(response_body)
-        Logger.error("[Mercadopago.OAuth] Unauthorized: #{inspect(error)}")
+        Logger.error("[Mercadopago.OAuth] Unauthorized: #{response_body}")
         {:error, :unauthorized}
 
-      {:ok, %HTTPoison.Response{status_code: status, body: response_body}} ->
-        Logger.error("[Mercadopago.OAuth] Unexpected status #{status}: #{response_body}")
+      {:ok, %HTTPoison.Response{status_code: _status, body: response_body}} ->
+        Logger.error("[Mercadopago.OAuth] Unexpected response: #{response_body}")
         {:error, :unexpected_response}
 
       {:error, %HTTPoison.Error{reason: reason}} ->
@@ -212,18 +222,28 @@ defmodule Mercadopago.OAuth do
 
     case HTTPoison.post(@token_url, body, headers) do
       {:ok, %HTTPoison.Response{status_code: 200, body: response_body}} ->
-        tokens = Poison.decode!(response_body, keys: :atoms)
-        Logger.info("[Mercadopago.OAuth] Successfully refreshed tokens")
-        {:ok, tokens}
+        case Poison.decode(response_body, %{keys: :atoms}) do
+          {:ok, tokens} ->
+            Logger.info("[Mercadopago.OAuth] Successfully refreshed tokens")
+            {:ok, tokens}
+
+          {:error, _reason} ->
+            Logger.error("[Mercadopago.OAuth] Failed to decode refresh token response")
+            {:error, :decode_error}
+        end
 
       {:ok, %HTTPoison.Response{status_code: 400, body: response_body}} ->
-        error = Poison.decode!(response_body)
-        Logger.error("[Mercadopago.OAuth] Bad request during refresh: #{inspect(error)}")
-        {:error, error["error"] || :bad_request}
+        error_msg =
+          case Poison.decode(response_body) do
+            {:ok, error} -> error["error"] || :bad_request
+            {:error, _} -> :bad_request
+          end
+
+        Logger.error("[Mercadopago.OAuth] Bad request during refresh: #{inspect(error_msg)}")
+        {:error, error_msg}
 
       {:ok, %HTTPoison.Response{status_code: 401, body: response_body}} ->
-        error = Poison.decode!(response_body)
-        Logger.error("[Mercadopago.OAuth] Unauthorized during refresh: #{inspect(error)}")
+        Logger.error("[Mercadopago.OAuth] Unauthorized during refresh: #{response_body}")
         {:error, :unauthorized}
 
       {:ok, %HTTPoison.Response{status_code: status, body: response_body}} ->
