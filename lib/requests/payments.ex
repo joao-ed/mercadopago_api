@@ -122,6 +122,7 @@ defmodule Mercadopago.Requests.Payments do
     - `data` - Payment data map
     - `access_token` - Optional. OAuth token to make request on behalf of another user.
                        **Required for marketplace/split payments.**
+    - `idempotency_key` - Optional. When provided, sends the "X-Idempotency-Key" header.
 
   ## Split Payment Example (Marketplace)
 
@@ -190,9 +191,14 @@ defmodule Mercadopago.Requests.Payments do
       }
       Mercadopago.Requests.Payments.create(data)
 
+  ## Idempotent Payment Example
+
+      idempotency_key = "your-idempotency-key"
+      Mercadopago.Requests.Payments.create(data, nil, idempotency_key)
+
   """
-  def create(data, access_token \\ nil) do
-    Mercadopago.API.post("/v1/payments", data, access_token)
+  def create(data, access_token \\ nil, idempotency_key \\ nil) do
+    Mercadopago.API.post("/v1/payments", data, access_token, idempotency_key)
   end
 
   @doc """

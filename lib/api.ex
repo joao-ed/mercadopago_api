@@ -105,6 +105,8 @@ defmodule Mercadopago.API do
     - `data` - The request body as a map or list
     - `access_token` - Optional. If provided, uses this token instead of the app's token.
                        Use this when making requests on behalf of another user (OAuth flow).
+    - `idempotency_key` - Optional. When provided, sends the "X-Idempotency-Key" header.
+                          Use this for safely retrying payment creation requests.
 
   ## Examples
 
@@ -116,21 +118,28 @@ defmodule Mercadopago.API do
       iex> Mercadopago.API.post("/v1/payments", %{amount: 100}, "APP_USR-musician-token")
       {:ok, {...}}
 
+      # With idempotency key
+      iex> Mercadopago.API.post("/v1/payments", %{amount: 100}, nil, "your-idempotency-key")
+      {:ok, {...}}
+
   """
-  @spec post(String.t(), map | list | nil, String.t() | nil) ::
+  @spec post(String.t(), map | list | nil, String.t() | nil, String.t() | nil) ::
           {:ok, map | :not_found | :no_content | nil}
-          | {:error, :unauthorised | :bad_network | any}
-  def post(url, data, access_token \\ nil) do
+          | {:error, :unauthorised | :bad_request | :not_found | :bad_network | any}
+  def post(url, data, access_token \\ nil, idempotency_key \\ nil) do
     {:ok, data} = Poison.encode(data)
 
-    case HTTPoison.post(base_url() <> url, data, headers(access_token)) do
-      {:ok, %{status_code: 404}} ->
+    case HTTPoison.post(base_url() <> url, data, headers(access_token, idempotency_key)) do
+      {:ok, %{status_code: 404, body: body}} ->
+        Logger.warning("POST #{url} returned 404: #{inspect(body)}")
         {:error, :not_found}
 
-      {:ok, %{status_code: 401}} ->
+      {:ok, %{status_code: 401, body: body}} ->
+        Logger.warning("POST #{url} returned 401: #{inspect(body)}")
         {:error, :unauthorised}
 
-      {:ok, %{status_code: 400}} ->
+      {:ok, %{status_code: 400, body: body}} ->
+        Logger.error("POST #{url} returned 400: #{inspect(body)}")
         {:error, :bad_request}
 
       {:ok, %{status_code: 204}} ->
@@ -142,11 +151,16 @@ defmodule Mercadopago.API do
       {:ok, %{body: body, status_code: 200}} ->
         {:ok, Poison.decode!(body, %{keys: :atoms})}
 
-      {:ok, %{body: body}} = resp ->
-        IO.inspect(resp)
+      {:ok, %{status_code: status_code, body: body}} ->
+        Logger.error("POST #{url} returned #{status_code}: #{inspect(body)}")
         {:error, body}
 
-      _ ->
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        Logger.error("POST #{url} failed: #{inspect(reason)}")
+        {:error, :bad_network}
+
+      _error ->
+        Logger.error("POST #{url} failed with an unknown error.")
         {:error, :bad_network}
     end
   end
@@ -264,6 +278,17 @@ defmodule Mercadopago.API do
       {"Content-Type", "application/json"}
     ]
   end
+
+  defp headers(access_token, idempotency_key) do
+    access_token
+    |> headers()
+    |> maybe_put_idempotency_key(idempotency_key)
+  end
+
+  defp maybe_put_idempotency_key(headers, nil), do: headers
+
+  defp maybe_put_idempotency_key(headers, idempotency_key),
+    do: [{"X-Idempotency-Key", idempotency_key} | headers]
 
   defp base_url,
     do: @base_url
